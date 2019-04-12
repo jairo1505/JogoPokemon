@@ -8,13 +8,16 @@ import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.w3c.dom.Text;
 
 import java.io.BufferedReader;
@@ -27,6 +30,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -36,64 +40,116 @@ public class MainActivity extends AppCompatActivity {
     private Button buttonOp3;
     private Button buttonOp4;
 
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        TextView textView = findViewById(R.id.textView);
         imageView = findViewById(R.id.imageView);
         buttonOp1 = findViewById(R.id.buttonOp1);
         buttonOp2 = findViewById(R.id.buttonOp2);
         buttonOp3 = findViewById(R.id.buttonOp3);
         buttonOp4 = findViewById(R.id.buttonOp4);
 
-        String jsonPokemon = lerArquivo("https://raw.githubusercontent.com/Biuni/PokemonGO-Pokedex/master/pokedex.json");
-        List<JsonPokemon> pokemons = leFaturasDeJSONString(jsonPokemon);
-        String nomes = "";
-        for (JsonPokemon pokemon : pokemons) {
-            nomes += pokemon.getName();
-        }
-        textView.setText(nomes);
+        DownloadDeDados downloadDeDados = new DownloadDeDados();
+        downloadDeDados.execute("https://raw.githubusercontent.com/Biuni/PokemonGO-Pokedex/master/pokedex.json");
+
 
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private static String lerArquivo(String arquivo) {
-        StringBuilder builder = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new FileReader(arquivo))) {
-            String linhaAtual;
-            while ((linhaAtual = br.readLine()) != null)
-            {
-                builder.append(linhaAtual).append("\n");
+    private class DownloadDeDados extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... strings) {
+            Log.d(TAG, "doInBackground: começa com o parâmetro: " + strings[0]);
+            String jsonFeed = downloadJson(strings[0]);
+            if (jsonFeed == null) {
+                Log.e(TAG, "doInBackground: Erro baixando JSON");
             }
-        }
-        catch (IOException e) {
-            System.err.println("Erro lendo arquivo: " + e.getMessage());
+            return jsonFeed;
         }
 
-        return builder.toString();
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            Log.d(TAG, "onPostExecute: parâmetro é: " + s);
+            JSONTokener jsonTokener = new JSONTokener(s);
+            try {
+                JSONObject json = new JSONObject(jsonTokener);
+                JSONArray jsonArray = json.getJSONArray("pokemon");
+                buttonOp1.setText(jsonArray.getJSONObject(0).getString("name"));
+                buttonOp2.setText(jsonArray.getJSONObject(1).getString("name"));
+                buttonOp3.setText(jsonArray.getJSONObject(2).getString("name"));
+                buttonOp4.setText(jsonArray.getJSONObject(3).getString("name"));
+                ImageDownloader imageDownloader = new ImageDownloader();
+                Bitmap imagem = imageDownloader.execute("https://www.serebii.net/pokemongo/pokemon/002.png").get();
+                imageView.setImageBitmap(imagem);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private String downloadJson(String urlString) {
+            StringBuilder json = new StringBuilder();
+
+            try {
+                URL url = new URL(urlString);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                int resposta = connection.getResponseCode();
+                Log.d(TAG, "downloadJson: O código de resposta foi: " + resposta);
+
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(connection.getInputStream()));
+
+                int charsLidos;
+                char[] inputBuffer = new char[99999999];
+                while (true) {
+                    charsLidos = reader.read(inputBuffer);
+                    if (charsLidos < 0) {
+                        break;
+                    }
+                    if (charsLidos > 0) {
+                        json.append(
+                                String.copyValueOf(inputBuffer, 0, charsLidos));
+                    }
+                }
+                reader.close();
+                return json.toString();
+
+            } catch (MalformedURLException e) {
+                Log.e(TAG, "downloadJson: URL é inválida " + e.getMessage());
+            } catch (IOException e) {
+                Log.e(TAG, "downloadJson: Ocorreu um erro de IO ao baixar dados: "
+                        + e.getMessage());
+            }
+            return null;
+        }
     }
+    private class ImageDownloader extends AsyncTask<String, Void, Bitmap> {
+        private static final String TAG = "ImageDownloader";
 
-    private static List<JsonPokemon> leFaturasDeJSONString(String jsonString) {
-        List<JsonPokemon> listaPokemons = new ArrayList<>();
-        try {
-            JSONObject json = new JSONObject(jsonString);
-            JSONArray pokemons = json.getJSONArray("pokemon");
+        @Override
+        protected Bitmap doInBackground(String... strings) {
+            try {
+                URL url = new URL(strings[0]);
 
-            for (int i = 0; i < pokemons.length(); i++) {
-                JSONObject pokemon = pokemons.getJSONObject(i);
-                JsonPokemon f = new JsonPokemon(
-                        pokemon.getString("name"),
-                        pokemon.getString("img")
-                );
-                listaPokemons.add(f);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+                InputStream inputStream = connection.getInputStream();
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+                Log.d(TAG, "doInBackground: Baixei imagem com sucesso!"+ url);
+
+                return bitmap;
+            } catch (Exception e) {
+                Log.e(TAG, "doInBackground: Erro ao baixar imagem " + e.getMessage());
             }
-        } catch (JSONException e) {
-            System.err.println("Erro fazendo parse de String JSON: " + e.getMessage());
+            return null;
         }
-
-        return listaPokemons;
     }
 
 }
