@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
                 buttonOp3.setText(jsonArray.getJSONObject(2).getString("name"));
                 buttonOp4.setText(jsonArray.getJSONObject(3).getString("name"));
                 ImageDownloader imageDownloader = new ImageDownloader();
-                Bitmap imagem = imageDownloader.execute("https://www.serebii.net/pokemongo/pokemon/002.png").get();
+                Bitmap imagem = imageDownloader.execute(jsonArray.getJSONObject(2).getString("img").replace("http","https")).get();
                 imageView.setImageBitmap(imagem);
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -94,7 +94,6 @@ public class MainActivity extends AppCompatActivity {
 
         private String downloadJson(String urlString) {
             StringBuilder json = new StringBuilder();
-
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
