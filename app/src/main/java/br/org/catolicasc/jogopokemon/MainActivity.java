@@ -8,6 +8,7 @@ import android.support.annotation.RequiresApi;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -25,11 +26,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
@@ -39,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private Button buttonOp2;
     private Button buttonOp3;
     private Button buttonOp4;
+    private String pokemonGlobal;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,11 +54,30 @@ public class MainActivity extends AppCompatActivity {
         buttonOp3 = findViewById(R.id.buttonOp3);
         buttonOp4 = findViewById(R.id.buttonOp4);
 
-        DownloadDeDados downloadDeDados = new DownloadDeDados();
+        final DownloadDeDados downloadDeDados = new DownloadDeDados();
         downloadDeDados.execute("https://raw.githubusercontent.com/Biuni/PokemonGO-Pokedex/master/pokedex.json");
 
-
+        View.OnClickListener listenerButtons = new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                Button b = (Button) v;
+                String nomePokemon = b.getText().toString();
+                if(pokemonGlobal.equals(nomePokemon)){
+                    Toast.makeText(MainActivity.this,"Correto!", Toast.LENGTH_SHORT).show();
+                    final DownloadDeDados downloadDeDados = new DownloadDeDados();
+                    downloadDeDados.execute("https://raw.githubusercontent.com/Biuni/PokemonGO-Pokedex/master/pokedex.json");
+                } else {
+                    Toast.makeText(MainActivity.this,"Errado!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
+        buttonOp1.setOnClickListener(listenerButtons);
+        buttonOp2.setOnClickListener(listenerButtons);
+        buttonOp3.setOnClickListener(listenerButtons);
+        buttonOp4.setOnClickListener(listenerButtons);
     }
+
+
 
     private class DownloadDeDados extends AsyncTask<String, Void, String> {
 
@@ -76,12 +99,19 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject json = new JSONObject(jsonTokener);
                 JSONArray jsonArray = json.getJSONArray("pokemon");
-                buttonOp1.setText(jsonArray.getJSONObject(0).getString("name"));
-                buttonOp2.setText(jsonArray.getJSONObject(1).getString("name"));
-                buttonOp3.setText(jsonArray.getJSONObject(2).getString("name"));
-                buttonOp4.setText(jsonArray.getJSONObject(3).getString("name"));
+                Random random = new Random();
+                int[] indice = new int[4];
+                for(int i =0; i<4;i++){
+                    indice[i] = random.nextInt(7);
+                }
+                buttonOp1.setText(jsonArray.getJSONObject(indice[0]).getString("name"));
+                buttonOp2.setText(jsonArray.getJSONObject(indice[1]).getString("name"));
+                buttonOp3.setText(jsonArray.getJSONObject(indice[2]).getString("name"));
+                buttonOp4.setText(jsonArray.getJSONObject(indice[3]).getString("name"));
                 ImageDownloader imageDownloader = new ImageDownloader();
-                Bitmap imagem = imageDownloader.execute(jsonArray.getJSONObject(2).getString("img").replace("http","https")).get();
+                int pokemon = indice[random.nextInt(4)];
+                pokemonGlobal = jsonArray.getJSONObject(pokemon).getString("name");
+                Bitmap imagem = imageDownloader.execute(jsonArray.getJSONObject(pokemon).getString("img").replace("http","https")).get();
                 imageView.setImageBitmap(imagem);
             } catch (JSONException e) {
                 e.printStackTrace();
