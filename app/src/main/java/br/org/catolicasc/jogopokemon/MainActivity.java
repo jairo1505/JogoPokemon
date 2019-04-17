@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONArray;
@@ -22,22 +23,29 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
+    private TextView placar;
     private ImageView imageView;
     private Button buttonOp1;
     private Button buttonOp2;
     private Button buttonOp3;
     private Button buttonOp4;
-    private JSONArray jsonArrayGlobal;
-    private String pokemonAtualGlobal;
+    private String pokemonAtual;
+    private int pokemonIndice;
+    private ArrayList<JsonPokemon> listaPokemon = new ArrayList<>();
+    private int acertos = 0;
+    private int erros = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        placar = findViewById(R.id.placar);
         imageView = findViewById(R.id.imageView);
         buttonOp1 = findViewById(R.id.buttonOp1);
         buttonOp2 = findViewById(R.id.buttonOp2);
@@ -47,40 +55,23 @@ public class MainActivity extends AppCompatActivity {
         final DownloadDeDados downloadDeDados = new DownloadDeDados();
         downloadDeDados.execute("https://raw.githubusercontent.com/Biuni/PokemonGO-Pokedex/master/pokedex.json");
 
-        View.OnClickListener listenerButtons = new View.OnClickListener(){
+        View.OnClickListener listenerButtons = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Button b = (Button) v;
                 String nomePokemon = b.getText().toString();
-                if(pokemonAtualGlobal.equals(nomePokemon)){
-                    Toast.makeText(MainActivity.this,"Correto!", Toast.LENGTH_SHORT).show();
+                if(acertos+erros<listaPokemon.size()) {
+                    if (pokemonAtual.equals(nomePokemon)) {
+                        pokemonShow();
+                        acertos++;
 
-                    Random random = new Random();
-                    int[] indice = new int[4];
-                    for(int i =0; i<4;i++){
-                        indice[i] = random.nextInt(151);
+                    } else {
+                        erros++;
+                        Toast.makeText(MainActivity.this, "A resposta correta seria: " + pokemonAtual, Toast.LENGTH_SHORT).show();
+                        pokemonShow();
                     }
-
-                    try {
-                        buttonOp1.setText(jsonArrayGlobal.getJSONObject(indice[0]).getString("name"));
-                        buttonOp2.setText(jsonArrayGlobal.getJSONObject(indice[1]).getString("name"));
-                        buttonOp3.setText(jsonArrayGlobal.getJSONObject(indice[2]).getString("name"));
-                        buttonOp4.setText(jsonArrayGlobal.getJSONObject(indice[3]).getString("name"));
-                        ImageDownloader imageDownloader = new ImageDownloader();
-                        int pokemon = indice[random.nextInt(4)];
-                        pokemonAtualGlobal = jsonArrayGlobal.getJSONObject(pokemon).getString("name");
-                        Bitmap imagem = imageDownloader.execute(jsonArrayGlobal.getJSONObject(pokemon).getString("img").replace("http","https")).get();
-                        imageView.setImageBitmap(imagem);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } catch (ExecutionException e) {
-                        e.printStackTrace();
-                    }
-
                 } else {
-                    Toast.makeText(MainActivity.this,"Errado!", Toast.LENGTH_SHORT).show();
+                    placar.setText("Fim de Jogo!");
                 }
             }
         };
@@ -90,6 +81,32 @@ public class MainActivity extends AppCompatActivity {
         buttonOp4.setOnClickListener(listenerButtons);
     }
 
+    protected void pokemonShow() {
+        placar.setText("Acertos: " + acertos + " | Erros: " + erros);
+        Random random = new Random();
+        ArrayList<Integer> indice = new ArrayList<>();
+        indice.add(pokemonIndice);
+        for (int i = 1; i < 4; i++) {
+            indice.add(random.nextInt(listaPokemon.size()));
+        }
+        Collections.shuffle(indice);
+
+        try {
+            buttonOp1.setText(listaPokemon.get(indice.get(0)).getName());
+            buttonOp2.setText(listaPokemon.get(indice.get(1)).getName());
+            buttonOp3.setText(listaPokemon.get(indice.get(2)).getName());
+            buttonOp4.setText(listaPokemon.get(indice.get(3)).getName());
+            ImageDownloader imageDownloader = new ImageDownloader();
+            pokemonAtual = listaPokemon.get(pokemonIndice).getName();
+            Bitmap imagem = imageDownloader.execute(listaPokemon.get(pokemonIndice).getImg().replace("http", "https")).get();
+            imageView.setImageBitmap(imagem);
+            pokemonIndice++;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
 
 
     private class DownloadDeDados extends AsyncTask<String, Void, String> {
@@ -110,30 +127,16 @@ public class MainActivity extends AppCompatActivity {
             JSONTokener jsonTokener = new JSONTokener(s);
             try {
                 JSONObject json = new JSONObject(jsonTokener);
-                jsonArrayGlobal = json.getJSONArray("pokemon");
-                Random random = new Random();
-                int[] indice = new int[4];
-                for(int i =0; i<4;i++){
-                    indice[i] = random.nextInt(151);
-                }
+                JSONArray jsonArray = json.getJSONArray("pokemon");
 
-                try {
-                    buttonOp1.setText(jsonArrayGlobal.getJSONObject(indice[0]).getString("name"));
-                    buttonOp2.setText(jsonArrayGlobal.getJSONObject(indice[1]).getString("name"));
-                    buttonOp3.setText(jsonArrayGlobal.getJSONObject(indice[2]).getString("name"));
-                    buttonOp4.setText(jsonArrayGlobal.getJSONObject(indice[3]).getString("name"));
-                    ImageDownloader imageDownloader = new ImageDownloader();
-                    int pokemon = indice[random.nextInt(4)];
-                    pokemonAtualGlobal = jsonArrayGlobal.getJSONObject(pokemon).getString("name");
-                    Bitmap imagem = imageDownloader.execute(jsonArrayGlobal.getJSONObject(pokemon).getString("img").replace("http","https")).get();
-                    imageView.setImageBitmap(imagem);
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JsonPokemon jsonPokemon = new JsonPokemon(
+                            jsonArray.getJSONObject(i).getString("name"),
+                            jsonArray.getJSONObject(i).getString("img"));
+                    listaPokemon.add(jsonPokemon);
                 }
+                Collections.shuffle(listaPokemon);
+                pokemonShow();
 
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -173,6 +176,7 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
     }
+
     private class ImageDownloader extends AsyncTask<String, Void, Bitmap> {
 
         @Override
