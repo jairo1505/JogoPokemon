@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private Button buttonOp3;
     private Button buttonOp4;
     private String pokemonAtual;
-    private int pokemonIndice;
+    private int pokemonIndice = 0;
     private ArrayList<JsonPokemon> listaPokemon = new ArrayList<>();
     private int acertos = 0;
     private int erros = 0;
@@ -60,10 +60,10 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Button b = (Button) v;
                 String nomePokemon = b.getText().toString();
-                if(acertos+erros<listaPokemon.size()) {
+                if(pokemonIndice<listaPokemon.size()) {
                     if (pokemonAtual.equals(nomePokemon)) {
-                        pokemonShow();
                         acertos++;
+                        pokemonShow();
 
                     } else {
                         erros++;
@@ -71,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
                         pokemonShow();
                     }
                 } else {
-                    placar.setText("Fim de Jogo!");
+                    placar.setText("Acertos: " + acertos + " | Erros: " + erros+" | Fim de Jogo!");
                 }
             }
         };
@@ -83,12 +83,19 @@ public class MainActivity extends AppCompatActivity {
 
     protected void pokemonShow() {
         placar.setText("Acertos: " + acertos + " | Erros: " + erros);
-        Random random = new Random();
+        ArrayList<Integer> numerosAleatorios = new ArrayList<>();
+        for(int i=0; i<151; i++){
+            if(i!=pokemonIndice){
+                numerosAleatorios.add(i);
+            }
+        }
+        Collections.shuffle(numerosAleatorios);
         ArrayList<Integer> indice = new ArrayList<>();
         indice.add(pokemonIndice);
-        for (int i = 1; i < 4; i++) {
-            indice.add(random.nextInt(listaPokemon.size()));
+        for(int i=0; i<3; i++){
+            indice.add(numerosAleatorios.get(i));
         }
+
         Collections.shuffle(indice);
 
         try {
