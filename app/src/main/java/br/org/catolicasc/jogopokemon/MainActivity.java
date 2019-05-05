@@ -1,15 +1,20 @@
 package br.org.catolicasc.jogopokemon;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
+import android.os.CountDownTimer;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.gson.Gson;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -26,10 +31,12 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
+import java.util.Timer;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
     private TextView placar;
+    private TextView tempo;
     private ImageView imageView;
     private Button buttonOp1;
     private Button buttonOp2;
@@ -37,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private Button buttonOp4;
     private String pokemonAtual;
     private int pokemonIndice = 0;
-    private ArrayList<JsonPokemon> listaPokemon = new ArrayList<>();
+    private ArrayList<ListEntry> listaPokemon = new ArrayList<>();
     private int acertos = 0;
     private int erros = 0;
 
@@ -46,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         placar = findViewById(R.id.placar);
+        tempo = findViewById(R.id.tempo);
         imageView = findViewById(R.id.imageView);
         buttonOp1 = findViewById(R.id.buttonOp1);
         buttonOp2 = findViewById(R.id.buttonOp2);
@@ -55,12 +63,37 @@ public class MainActivity extends AppCompatActivity {
         final DownloadDeDados downloadDeDados = new DownloadDeDados();
         downloadDeDados.execute("https://raw.githubusercontent.com/Biuni/PokemonGO-Pokedex/master/pokedex.json");
 
+        new CountDownTimer(60000, 1000) {
+
+            public void onTick(long millisecondsUntilDone) {
+
+                // Coundown is counting down (every second)
+
+                tempo.setText("Tempo: " + millisecondsUntilDone / 1000);
+
+            }
+
+            public void onFinish() {
+
+                Gson gson = new Gson();
+
+                Intent intent = new Intent(MainActivity.this, ListPokemon.class);
+                intent.putExtra("lista", gson.toJson(listaPokemon));
+                System.out.println(gson.toJson(listaPokemon));
+                startActivity(intent);
+
+            }
+        }.start();
+
         View.OnClickListener listenerButtons = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Button b = (Button) v;
                 String nomePokemon = b.getText().toString();
                 if(pokemonIndice<listaPokemon.size()) {
+                    ListEntry edit = listaPokemon.get(pokemonIndice-1);
+                    edit.setNomeRespondido(nomePokemon);
+                    listaPokemon.set(pokemonIndice-1,edit);
                     if (pokemonAtual.equals(nomePokemon)) {
                         acertos++;
                         pokemonShow();
@@ -71,7 +104,14 @@ public class MainActivity extends AppCompatActivity {
                         pokemonShow();
                     }
                 } else {
-                    placar.setText("Acertos: " + acertos + " | Erros: " + erros+" | Fim de Jogo!");
+                    placar.setText("Acertos: " + acertos + " | Erros: " + erros);
+                    Gson gson = new Gson();
+
+                    Intent intent = new Intent(MainActivity.this, ListPokemon.class);
+                    intent.putExtra("lista", gson.toJson(listaPokemon));
+                    System.out.println(gson.toJson(listaPokemon));
+                    startActivity(intent);
+
                 }
             }
         };
@@ -99,13 +139,13 @@ public class MainActivity extends AppCompatActivity {
         Collections.shuffle(indice);
 
         try {
-            buttonOp1.setText(listaPokemon.get(indice.get(0)).getName());
-            buttonOp2.setText(listaPokemon.get(indice.get(1)).getName());
-            buttonOp3.setText(listaPokemon.get(indice.get(2)).getName());
-            buttonOp4.setText(listaPokemon.get(indice.get(3)).getName());
+            buttonOp1.setText(listaPokemon.get(indice.get(0)).getNome());
+            buttonOp2.setText(listaPokemon.get(indice.get(1)).getNome());
+            buttonOp3.setText(listaPokemon.get(indice.get(2)).getNome());
+            buttonOp4.setText(listaPokemon.get(indice.get(3)).getNome());
             ImageDownloader imageDownloader = new ImageDownloader();
-            pokemonAtual = listaPokemon.get(pokemonIndice).getName();
-            Bitmap imagem = imageDownloader.execute(listaPokemon.get(pokemonIndice).getImg().replace("http", "https")).get();
+            pokemonAtual = listaPokemon.get(pokemonIndice).getNome();
+            Bitmap imagem = imageDownloader.execute(listaPokemon.get(pokemonIndice).getImgUrl().replace("http", "https")).get();
             imageView.setImageBitmap(imagem);
             pokemonIndice++;
         } catch (InterruptedException e) {
@@ -137,10 +177,11 @@ public class MainActivity extends AppCompatActivity {
                 JSONArray jsonArray = json.getJSONArray("pokemon");
 
                 for (int i = 0; i < jsonArray.length(); i++) {
-                    JsonPokemon jsonPokemon = new JsonPokemon(
+                    ListEntry listEntry = new ListEntry(
+                            jsonArray.getJSONObject(i).getString("id"),
                             jsonArray.getJSONObject(i).getString("name"),
                             jsonArray.getJSONObject(i).getString("img"));
-                    listaPokemon.add(jsonPokemon);
+                    listaPokemon.add(listEntry);
                 }
                 Collections.shuffle(listaPokemon);
                 pokemonShow();
